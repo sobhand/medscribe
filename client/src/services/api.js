@@ -33,30 +33,25 @@ export async function createConsultation(doctorName, doctorCrm, sessionTitle) {
 }
 
 export async function transcribe(consultationId, audioBlob, duration) {
-  const formData = new FormData();
-  formData.append('audio', audioBlob, 'recording.webm');
-  formData.append('duration', String(duration || 0));
-
-  let res;
-  try {
-    res = await fetch(`${BASE}/consultations/${consultationId}/transcribe`, {
-      method: 'POST',
-      body: formData,
-    });
-  } catch (e) {
-    throw new Error('Falha ao enviar áudio. Verifique sua conexão.');
+  // Convert blob to base64
+  const buffer = await audioBlob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
+  const audioBase64 = btoa(binary);
 
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error(`Erro do servidor (${res.status})`);
-  }
-
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.error || `Erro na transcrição (${res.status})`);
-  }
-  return data;
+  return request(`${BASE}/consultations/${consultationId}/transcribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      audioBase64,
+      mimeType: audioBlob.type,
+      duration: duration || 0,
+    }),
+  });
 }
 
 export async function analyze(consultationId) {
