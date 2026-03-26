@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import useConsultationStore from '../stores/useConsultationStore';
 import useAudioRecorder from '../hooks/useAudioRecorder';
-import { createConsultation, uploadAudio, transcribe, analyze, getConsultation } from '../services/api';
+import { createConsultation, transcribe, analyze, getConsultation } from '../services/api';
 
 export default function RecordingScreen() {
   const { doctorName, doctorCrm, setScreen, setCurrentConsultationId, setCurrentConsultation, markProcessingStep, resetProcessingSteps, setError } =
@@ -27,13 +27,10 @@ export default function RecordingScreen() {
       // 1. Create consultation
       const { id } = await createConsultation(doctorName, doctorCrm);
       setCurrentConsultationId(id);
-
-      // 2. Upload audio
-      const { audioPath } = await uploadAudio(id, audioBlob);
       markProcessingStep('upload');
 
-      // 3. Transcribe
-      await transcribe(id, audioPath);
+      // 2. Transcribe (sends audio as base64)
+      await transcribe(id, audioBlob);
       markProcessingStep('transcribe');
 
       // 4. Analyze

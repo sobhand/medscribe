@@ -9,21 +9,17 @@ export async function createConsultation(doctorName, doctorCrm) {
   return res.json();
 }
 
-export async function uploadAudio(consultationId, audioBlob) {
-  const formData = new FormData();
-  formData.append('audio', audioBlob, 'recording.webm');
-  const res = await fetch(`${BASE}/consultations/${consultationId}/audio`, {
-    method: 'POST',
-    body: formData,
-  });
-  return res.json();
-}
+export async function transcribe(consultationId, audioBlob) {
+  // Convert blob to base64 for serverless (no filesystem)
+  const buffer = await audioBlob.arrayBuffer();
+  const base64 = btoa(
+    new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+  );
 
-export async function transcribe(consultationId, audioPath) {
   const res = await fetch(`${BASE}/consultations/${consultationId}/transcribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ audioPath }),
+    body: JSON.stringify({ audioBase64: base64, mimeType: audioBlob.type }),
   });
   return res.json();
 }
