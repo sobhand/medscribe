@@ -1,4 +1,5 @@
 import { getDb } from '../../lib/db.js';
+import { requireAuth } from '../../lib/auth.js';
 import FormData from 'form-data';
 import https from 'https';
 
@@ -48,10 +49,17 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const { id } = req.query;
   const sql = getDb();
 
   try {
+    // Verify ownership
+    const check = await sql`SELECT id FROM consultations WHERE id = ${id} AND user_id = ${user.id}`;
+    if (check.length === 0) return res.status(404).json({ error: 'Consulta não encontrada' });
+
     const { audioBase64, duration } = req.body;
 
     if (!audioBase64) {

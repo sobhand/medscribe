@@ -1,4 +1,5 @@
 import { getDb } from '../../lib/db.js';
+import { requireAuth } from '../../lib/auth.js';
 import PDFDocument from 'pdfkit';
 
 export default async function handler(req, res) {
@@ -7,10 +8,13 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const { id } = req.query;
   const sql = getDb();
 
-  const rows = await sql`SELECT * FROM consultations WHERE id = ${id}`;
+  const rows = await sql`SELECT * FROM consultations WHERE id = ${id} AND user_id = ${user.id}`;
   if (rows.length === 0) return res.status(404).json({ error: 'Consultation not found' });
 
   const row = rows[0];

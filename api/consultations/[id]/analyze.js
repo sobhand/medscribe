@@ -1,4 +1,5 @@
 import { getDb } from '../../lib/db.js';
+import { requireAuth } from '../../lib/auth.js';
 import OpenAI from 'openai';
 import { CLINICAL_PROMPT } from '../../lib/prompt.js';
 
@@ -12,11 +13,14 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
+  const user = requireAuth(req, res);
+  if (!user) return;
+
   const { id } = req.query;
   const sql = getDb();
 
   try {
-    const rows = await sql`SELECT transcription FROM consultations WHERE id = ${id}`;
+    const rows = await sql`SELECT transcription FROM consultations WHERE id = ${id} AND user_id = ${user.id}`;
     if (rows.length === 0) return res.status(404).json({ error: 'Consulta não encontrada' });
 
     const transcription = rows[0].transcription;

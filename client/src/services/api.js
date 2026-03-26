@@ -1,11 +1,35 @@
 const BASE = '/api';
 
+function getToken() {
+  return localStorage.getItem('token');
+}
+
+function authHeaders(extra = {}) {
+  const token = getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
+
 async function request(url, options = {}) {
+  // Inject auth header
+  options.headers = { ...authHeaders(), ...options.headers };
+
   let res;
   try {
     res = await fetch(url, options);
   } catch (e) {
     throw new Error('Sem conexão com o servidor. Verifique sua internet.');
+  }
+
+  if (res.status === 401) {
+    // Token expired — force re-login
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.reload();
+    throw new Error('Sessão expirada. Faça login novamente.');
   }
 
   const contentType = res.headers.get('content-type') || '';
@@ -23,7 +47,6 @@ async function request(url, options = {}) {
 export async function createConsultation(doctorName, doctorCrm, sessionTitle) {
   return request(`${BASE}/consultations`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       doctor_name: doctorName,
       doctor_crm: doctorCrm,
@@ -33,7 +56,6 @@ export async function createConsultation(doctorName, doctorCrm, sessionTitle) {
 }
 
 export async function transcribe(consultationId, audioBlob, duration) {
-  // Convert blob to base64
   const buffer = await audioBlob.arrayBuffer();
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -45,7 +67,6 @@ export async function transcribe(consultationId, audioBlob, duration) {
 
   return request(`${BASE}/consultations/${consultationId}/transcribe`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       audioBase64,
       mimeType: audioBlob.type,
@@ -57,7 +78,6 @@ export async function transcribe(consultationId, audioBlob, duration) {
 export async function analyze(consultationId) {
   return request(`${BASE}/consultations/${consultationId}/analyze`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
   });
 }
 
@@ -72,7 +92,6 @@ export async function getConsultation(id) {
 export async function updateConsultation(id, data) {
   return request(`${BASE}/consultations/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
 }
@@ -82,7 +101,11 @@ export async function deleteConsultation(id) {
 }
 
 export async function exportPdf(id) {
-  const res = await fetch(`${BASE}/consultations/${id}/export-pdf`, { method: 'POST' });
+  const token = getToken();
+  const res = await fetch(`${BASE}/consultations/${id}/export-pdf`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!res.ok) throw new Error('Falha ao gerar PDF');
   return res.blob();
 }

@@ -13,3 +13,30 @@ export function signToken(user) {
 export function verifyToken(token) {
   return jwt.verify(token, JWT_SECRET);
 }
+
+/**
+ * Extract and verify user from Authorization header.
+ * Returns user object or null.
+ */
+export function getUserFromRequest(req) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token) return null;
+  try {
+    return verifyToken(token);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Middleware-like helper. Returns user or sends 401.
+ */
+export function requireAuth(req, res) {
+  const user = getUserFromRequest(req);
+  if (!user) {
+    res.status(401).json({ error: 'Não autorizado. Faça login novamente.' });
+    return null;
+  }
+  return user;
+}

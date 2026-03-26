@@ -34,6 +34,7 @@ Retorne EXCLUSIVAMENTE um JSON válido (sem markdown, sem explicações) com est
   "complementary_exams": [
     {
       "exam": "Nome do exame",
+      "tuss_code": "Código TUSS do exame (tabela TUSS da ANS, ex: 40301630 para hemograma)",
       "justification": "Por que solicitar",
       "related_hypothesis": "Hipótese que justifica"
     }
