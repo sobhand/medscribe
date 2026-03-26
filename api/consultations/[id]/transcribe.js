@@ -1,5 +1,5 @@
 import { getDb } from '../../lib/db.js';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 
 export const config = {
   maxDuration: 60,
@@ -22,22 +22,16 @@ export default async function handler(req, res) {
     }
 
     const dur = parseInt(duration || '0', 10);
-    if (dur > 0 && dur < 2) {
-      return res.status(400).json({ error: 'Gravação muito curta.' });
-    }
+    const buffer = Buffer.from(audioBase64, 'base64');
 
-    const bufferSize = Math.ceil(audioBase64.length * 3 / 4);
-    console.log(`[transcribe] id=${id}, base64Len=${audioBase64.length}, bufferSize=${bufferSize}, duration=${dur}`);
+    console.log(`[transcribe] id=${id}, bufferSize=${buffer.length}, duration=${dur}`);
 
     await sql`UPDATE consultations SET status = 'processing', audio_duration_seconds = ${dur} WHERE id = ${id}`;
 
-    // Convert base64 to buffer then to File for OpenAI
-    const buffer = Buffer.from(audioBase64, 'base64');
-    const file = new File([buffer], 'recording.webm', {
-      type: 'audio/webm',
-    });
-
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // Use OpenAI's toFile helper for proper SDK compatibility
+    const file = await toFile(buffer, 'recording.webm', { type: 'audio/webm' });
 
     const transcription = await openai.audio.transcriptions.create({
       file,
