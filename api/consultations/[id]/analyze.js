@@ -26,7 +26,7 @@ export default async function handler(req, res) {
 
     console.log(`[analyze] id=${id}, transcription length=${transcription.length}`);
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openai = new OpenAI({ apiKey: (process.env.OPENAI_API_KEY || '').trim() });
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',

@@ -1,9 +1,46 @@
 import { getDb } from '../../lib/db.js';
-import OpenAI, { toFile } from 'openai';
+import FormData from 'form-data';
+import https from 'https';
 
 export const config = {
   maxDuration: 60,
 };
+
+function whisperTranscribe(buffer, apiKey) {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append('file', buffer, { filename: 'audio.webm', contentType: 'audio/webm' });
+    form.append('model', 'whisper-1');
+    form.append('language', 'pt');
+    form.append('response_format', 'text');
+
+    const req = https.request('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        ...form.getHeaders(),
+        'Authorization': `Bearer ${apiKey}`,
+      },
+    }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 400) {
+          try {
+            const err = JSON.parse(data);
+            reject(new Error(err.error?.message || `Whisper API error ${res.statusCode}`));
+          } catch {
+            reject(new Error(`Whisper API error ${res.statusCode}: ${data.substring(0, 200)}`));
+          }
+        } else {
+          resolve(data);
+        }
+      });
+    });
+
+    req.on('error', (e) => reject(new Error(`Network error: ${e.message}`)));
+    form.pipe(req);
+  });
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,7 +52,7 @@ export default async function handler(req, res) {
   const sql = getDb();
 
   try {
-    const { audioBase64, mimeType, duration } = req.body;
+    const { audioBase64, duration } = req.body;
 
     if (!audioBase64) {
       return res.status(400).json({ error: 'Nenhum áudio recebido' });
@@ -28,17 +65,7 @@ export default async function handler(req, res) {
 
     await sql`UPDATE consultations SET status = 'processing', audio_duration_seconds = ${dur} WHERE id = ${id}`;
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    // Use OpenAI's toFile helper for proper SDK compatibility
-    const file = await toFile(buffer, 'recording.webm', { type: 'audio/webm' });
-
-    const transcription = await openai.audio.transcriptions.create({
-      file,
-      model: 'whisper-1',
-      language: 'pt',
-      response_format: 'text',
-    });
+    const transcription = await whisperTranscribe(buffer, (process.env.OPENAI_API_KEY || '').trim());
 
     console.log(`[transcribe] result length=${transcription.length}, text="${transcription.substring(0, 80)}"`);
 
