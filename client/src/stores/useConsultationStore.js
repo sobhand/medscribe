@@ -1,29 +1,25 @@
 import { create } from 'zustand';
 
+const PROCESSING_STEPS = [
+  { key: 'create', label: 'Criando consulta...', done: false },
+  { key: 'transcribe', label: 'Transcrevendo consulta...', done: false },
+  { key: 'analyze', label: 'Analisando conteúdo clínico...', done: false },
+  { key: 'complete', label: 'Gerando documentação...', done: false },
+];
+
 const useConsultationStore = create((set) => ({
-  // Current screen: 'setup' | 'home' | 'recording' | 'processing' | 'results'
   screen: localStorage.getItem('doctor_name') ? 'home' : 'setup',
 
-  // Doctor info
   doctorName: localStorage.getItem('doctor_name') || '',
   doctorCrm: localStorage.getItem('doctor_crm') || '',
 
-  // Current consultation
   currentConsultationId: null,
   currentConsultation: null,
 
-  // Processing steps
-  processingSteps: [
-    { key: 'upload', label: 'Enviando áudio...', done: false },
-    { key: 'transcribe', label: 'Transcrevendo consulta...', done: false },
-    { key: 'analyze', label: 'Analisando conteúdo clínico...', done: false },
-    { key: 'complete', label: 'Gerando documentação...', done: false },
-  ],
+  processingSteps: PROCESSING_STEPS.map((s) => ({ ...s })),
 
-  // Consultations list
   consultations: [],
 
-  // Error state
   error: null,
 
   setDoctor: (name, crm) => {
@@ -49,12 +45,7 @@ const useConsultationStore = create((set) => ({
 
   resetProcessingSteps: () =>
     set({
-      processingSteps: [
-        { key: 'upload', label: 'Enviando áudio...', done: false },
-        { key: 'transcribe', label: 'Transcrevendo consulta...', done: false },
-        { key: 'analyze', label: 'Analisando conteúdo clínico...', done: false },
-        { key: 'complete', label: 'Gerando documentação...', done: false },
-      ],
+      processingSteps: PROCESSING_STEPS.map((s) => ({ ...s })),
     }),
 
   setError: (error) => set({ error }),

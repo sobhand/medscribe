@@ -1,12 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import useConsultationStore from '../stores/useConsultationStore';
 import EditableCard from './EditableCard';
 import { FEATURES } from '../config/features';
 import { updateConsultation, exportPdf } from '../services/api';
 
 export default function ResultsScreen() {
-  const { currentConsultation, currentConsultationId, setScreen, setCurrentConsultation, resetProcessingSteps } =
+  const { currentConsultation, currentConsultationId, setScreen, resetProcessingSteps } =
     useConsultationStore();
+  const [exporting, setExporting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const c = currentConsultation;
   if (!c) return null;
@@ -22,13 +24,20 @@ export default function ResultsScreen() {
   };
 
   const handleExportPdf = async () => {
-    const blob = await exportPdf(currentConsultationId);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `consulta-${currentConsultationId.slice(0, 8)}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setExporting(true);
+    try {
+      const blob = await exportPdf(currentConsultationId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `consulta-${currentConsultationId.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('PDF export error:', e);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleCopyAll = () => {
@@ -54,16 +63,18 @@ export default function ResultsScreen() {
     if (treatment.follow_up) sections.push(`RETORNO: ${treatment.follow_up}`);
 
     navigator.clipboard.writeText(sections.join('\n'));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="min-h-screen min-h-[100dvh] bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <button
             onClick={() => setScreen('home')}
-            className="text-primary-600 font-medium flex items-center gap-1"
+            className="text-primary-600 font-medium flex items-center gap-0.5 text-sm"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -71,38 +82,39 @@ export default function ResultsScreen() {
             Início
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {FEATURES.PDF_EXPORT && (
               <button
                 onClick={handleExportPdf}
-                className="px-3 py-2 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition font-medium"
+                disabled={exporting}
+                className="px-3 py-2 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700 active:scale-95 transition font-medium disabled:opacity-50"
               >
-                Exportar PDF
+                {exporting ? 'Gerando...' : 'PDF'}
               </button>
             )}
             <button
               onClick={handleCopyAll}
-              className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition font-medium"
+              className="px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 active:scale-95 transition font-medium"
             >
-              Copiar Tudo
+              {copied ? 'Copiado!' : 'Copiar'}
             </button>
             <button
               onClick={handleNewConsultation}
-              className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium"
+              className="px-3 py-2 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition font-medium"
             >
-              Nova Consulta
+              Nova
             </button>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 pt-6 space-y-4">
+      <div className="max-w-lg mx-auto px-4 pt-4 pb-8 space-y-3">
         {/* Patient summary */}
         {c.patient_summary && (
-          <div className="bg-primary-50 rounded-2xl px-5 py-4">
-            <p className="text-primary-800 font-medium text-lg">{c.patient_summary}</p>
-            <p className="text-primary-600 text-sm mt-1">
+          <div className="bg-primary-50 rounded-2xl px-4 py-3.5">
+            <p className="text-primary-800 font-medium text-base leading-snug">{c.patient_summary}</p>
+            <p className="text-primary-500 text-xs mt-1.5">
               {new Date(c.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
@@ -114,13 +126,13 @@ export default function ResultsScreen() {
         )}
 
         {/* Anamnesis */}
-        {FEATURES.ANAMNESIS && (
+        {FEATURES.ANAMNESIS && Object.keys(anamnesis).length > 0 && (
           <AnamnesisCard anamnesis={anamnesis} consultationId={currentConsultationId} />
         )}
 
         {/* Diagnostic Hypotheses */}
         {FEATURES.DIAGNOSTIC_HYPOTHESES && hypotheses.length > 0 && (
-          <HypothesesCard hypotheses={hypotheses} consultationId={currentConsultationId} />
+          <HypothesesCard hypotheses={hypotheses} />
         )}
 
         {/* Complementary Exams */}
@@ -154,17 +166,17 @@ function TranscriptionCard({ transcription, consultationId }) {
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full min-h-[200px] p-3 border border-gray-200 rounded-xl text-base resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              className="w-full min-h-[160px] p-3 border border-gray-200 rounded-xl text-sm resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
             />
             <div className="flex justify-end gap-2 mt-2">
-              <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-              <button onClick={save} className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">Salvar</button>
+              <button onClick={() => { setText(transcription); setEditing(false); }} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+              <button onClick={save} className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700">Salvar</button>
             </div>
           </>
         ) : (
           <>
-            <p className="text-gray-700 text-base whitespace-pre-wrap leading-relaxed">{text}</p>
-            <button onClick={() => setEditing(true)} className="mt-2 text-sm text-primary-600 hover:text-primary-700 font-medium">Editar</button>
+            <p className="text-gray-600 text-sm whitespace-pre-wrap leading-relaxed">{text}</p>
+            <button onClick={() => setEditing(true)} className="mt-2 text-xs text-primary-600 hover:text-primary-700 font-medium">Editar</button>
           </>
         )}
       </div>
@@ -186,42 +198,39 @@ function AnamnesisCard({ anamnesis, consultationId }) {
   const [values, setValues] = useState(anamnesis);
   const [editingField, setEditingField] = useState(null);
 
-  const saveField = async (key) => {
+  const saveField = async () => {
     await updateConsultation(consultationId, { anamnesis: values });
     setEditingField(null);
   };
 
   return (
     <EditableCard title="Anamnese" icon="📋" defaultExpanded={true}>
-      <div className="mt-3 space-y-4">
+      <div className="mt-3 space-y-3.5">
         {fields.map(({ key, label }) => {
           const value = values[key];
           if (!value || value === 'Não mencionado na consulta') return null;
 
           return (
             <div key={key}>
-              <label className="text-sm font-semibold text-gray-600 block mb-1">{label}</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">{label}</label>
               {editingField === key ? (
                 <>
                   <textarea
                     value={values[key]}
                     onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                    className="w-full min-h-[80px] p-3 border border-gray-200 rounded-xl text-base resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                    className="w-full min-h-[70px] p-3 border border-gray-200 rounded-xl text-sm resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                   />
                   <div className="flex justify-end gap-2 mt-1">
-                    <button onClick={() => setEditingField(null)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-                    <button onClick={() => saveField(key)} className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">Salvar</button>
+                    <button onClick={() => setEditingField(null)} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+                    <button onClick={saveField} className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700">Salvar</button>
                   </div>
                 </>
               ) : (
-                <div className="flex items-start justify-between group">
-                  <p className="text-gray-700 text-base leading-relaxed flex-1">{value}</p>
-                  <button
-                    onClick={() => setEditingField(key)}
-                    className="ml-2 text-sm text-primary-600 opacity-0 group-hover:opacity-100 transition font-medium flex-shrink-0"
-                  >
-                    Editar
-                  </button>
+                <div
+                  onClick={() => setEditingField(key)}
+                  className="text-gray-700 text-sm leading-relaxed cursor-pointer hover:bg-gray-50 rounded-lg p-1.5 -m-1.5 transition"
+                >
+                  {value}
                 </div>
               )}
             </div>
@@ -232,7 +241,7 @@ function AnamnesisCard({ anamnesis, consultationId }) {
   );
 }
 
-function HypothesesCard({ hypotheses, consultationId }) {
+function HypothesesCard({ hypotheses }) {
   const [items, setItems] = useState(hypotheses.map((h) => ({ ...h, accepted: null })));
 
   const probColor = {
@@ -243,44 +252,44 @@ function HypothesesCard({ hypotheses, consultationId }) {
 
   return (
     <EditableCard title="Hipóteses Diagnósticas" icon="🔍" defaultExpanded={true} badge="Sugestão IA">
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 space-y-2.5">
         {items.map((h, i) => (
           <div
             key={i}
-            className={`rounded-xl border p-4 transition ${
+            className={`rounded-xl border p-3.5 transition ${
               h.accepted === true ? 'border-green-300 bg-green-50' :
-              h.accepted === false ? 'border-red-200 bg-red-50 opacity-60' :
-              'border-gray-100'
+              h.accepted === false ? 'border-red-200 bg-red-50/50 opacity-50' :
+              'border-gray-100 bg-gray-50/30'
             }`}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-gray-800">{h.diagnosis}</span>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-gray-800 text-sm">{h.diagnosis}</span>
                   {h.icd10 && (
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{h.icd10}</span>
+                    <span className="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded font-mono">{h.icd10}</span>
                   )}
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${probColor[h.probability] || 'bg-gray-100 text-gray-600'}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${probColor[h.probability] || 'bg-gray-100 text-gray-600'}`}>
                     {h.probability}
                   </span>
                 </div>
                 {h.justification && (
-                  <p className="text-sm text-gray-600 mt-1">{h.justification}</p>
+                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{h.justification}</p>
                 )}
               </div>
-              <div className="flex items-center gap-1 ml-3 flex-shrink-0">
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <button
                   onClick={() => {
                     const updated = [...items];
                     updated[i] = { ...h, accepted: h.accepted === true ? null : true };
                     setItems(updated);
                   }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
-                    h.accepted === true ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-green-100'
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
+                    h.accepted === true ? 'bg-green-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-green-300 hover:text-green-500'
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                 </button>
                 <button
@@ -289,12 +298,12 @@ function HypothesesCard({ hypotheses, consultationId }) {
                     updated[i] = { ...h, accepted: h.accepted === false ? null : false };
                     setItems(updated);
                   }}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
-                    h.accepted === false ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-red-100'
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition ${
+                    h.accepted === false ? 'bg-red-500 text-white' : 'bg-white border border-gray-200 text-gray-400 hover:border-red-300 hover:text-red-500'
                   }`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
@@ -311,9 +320,9 @@ function ExamsCard({ exams }) {
 
   return (
     <EditableCard title="Exames Complementares" icon="🧪" defaultExpanded={true} badge="Sugestão IA">
-      <div className="mt-3 space-y-3">
+      <div className="mt-3 space-y-2.5">
         {items.map((e, i) => (
-          <label key={i} className="flex items-start gap-3 cursor-pointer group">
+          <label key={i} className="flex items-start gap-3 cursor-pointer p-2 -mx-2 rounded-lg hover:bg-gray-50 transition">
             <input
               type="checkbox"
               checked={e.checked}
@@ -322,13 +331,13 @@ function ExamsCard({ exams }) {
                 updated[i] = { ...e, checked: !e.checked };
                 setItems(updated);
               }}
-              className="mt-1 w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
             />
-            <div className="flex-1">
-              <span className="font-medium text-gray-800">{e.exam}</span>
-              {e.justification && <p className="text-sm text-gray-500 mt-0.5">{e.justification}</p>}
+            <div className="flex-1 min-w-0">
+              <span className="font-medium text-gray-800 text-sm">{e.exam}</span>
+              {e.justification && <p className="text-xs text-gray-500 mt-0.5">{e.justification}</p>}
               {e.related_hypothesis && (
-                <p className="text-xs text-primary-600 mt-0.5">Hipótese: {e.related_hypothesis}</p>
+                <p className="text-[11px] text-primary-600 mt-0.5">Hipótese: {e.related_hypothesis}</p>
               )}
             </div>
           </label>
@@ -354,22 +363,22 @@ function TreatmentCard({ treatment, consultationId }) {
   ];
 
   return (
-    <EditableCard title="Conduta / Tratamento" icon="💊" defaultExpanded={true} badge="Sugestão IA — revise antes de adotar">
-      <div className="mt-3 space-y-4">
+    <EditableCard title="Conduta / Tratamento" icon="💊" defaultExpanded={true} badge="Sugestão IA">
+      <div className="mt-3 space-y-3.5">
         {fields.map(({ key, label }) => {
           const value = values[key];
           if (!value) return null;
           return (
             <div key={key}>
-              <label className="text-sm font-semibold text-gray-600 block mb-1">{label}</label>
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-1">{label}</label>
               {editing ? (
                 <textarea
                   value={values[key]}
                   onChange={(e) => setValues({ ...values, [key]: e.target.value })}
-                  className="w-full min-h-[80px] p-3 border border-gray-200 rounded-xl text-base resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+                  className="w-full min-h-[70px] p-3 border border-gray-200 rounded-xl text-sm resize-y focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                 />
               ) : (
-                <p className="text-gray-700 text-base leading-relaxed">{value}</p>
+                <p className="text-gray-700 text-sm leading-relaxed">{value}</p>
               )}
             </div>
           );
@@ -377,11 +386,11 @@ function TreatmentCard({ treatment, consultationId }) {
         <div className="flex justify-end gap-2">
           {editing ? (
             <>
-              <button onClick={() => setEditing(false)} className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-              <button onClick={save} className="px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700">Salvar</button>
+              <button onClick={() => { setValues(treatment); setEditing(false); }} className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-100 rounded-lg">Cancelar</button>
+              <button onClick={save} className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700">Salvar</button>
             </>
           ) : (
-            <button onClick={() => setEditing(true)} className="text-sm text-primary-600 hover:text-primary-700 font-medium">Editar</button>
+            <button onClick={() => setEditing(true)} className="text-xs text-primary-600 hover:text-primary-700 font-medium">Editar</button>
           )}
         </div>
       </div>

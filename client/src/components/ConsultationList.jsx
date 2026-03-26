@@ -11,24 +11,14 @@ export default function ConsultationList() {
   }, [setConsultations]);
 
   const handleClick = async (id) => {
-    const data = await getConsultation(id);
-    setCurrentConsultationId(id);
-    setCurrentConsultation(data);
-    setScreen('results');
-  };
-
-  const statusLabel = {
-    recording: 'Gravando',
-    processing: 'Processando',
-    completed: 'Concluída',
-    error: 'Erro',
-  };
-
-  const statusColor = {
-    recording: 'bg-red-100 text-red-700',
-    processing: 'bg-yellow-100 text-yellow-700',
-    completed: 'bg-green-100 text-green-700',
-    error: 'bg-red-100 text-red-700',
+    try {
+      const data = await getConsultation(id);
+      setCurrentConsultationId(id);
+      setCurrentConsultation(data);
+      setScreen('results');
+    } catch (e) {
+      console.error('Failed to load consultation:', e);
+    }
   };
 
   const completedConsultations = consultations.filter((c) => c.status === 'completed');
@@ -36,17 +26,17 @@ export default function ConsultationList() {
   if (completedConsultations.length === 0) return null;
 
   return (
-    <div className="mt-8 w-full max-w-md">
-      <h2 className="text-lg font-semibold text-gray-700 mb-4">Consultas anteriores</h2>
-      <div className="space-y-3">
+    <div className="mt-6">
+      <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Consultas anteriores</h2>
+      <div className="space-y-2.5">
         {completedConsultations.map((c) => (
           <button
             key={c.id}
             onClick={() => handleClick(c.id)}
-            className="w-full text-left bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:border-primary-200 hover:shadow-md transition"
+            className="w-full text-left bg-white rounded-xl border border-gray-100 p-4 hover:border-primary-200 hover:shadow-sm active:scale-[0.99] transition"
           >
             <div className="flex items-center justify-between mb-1">
-              <span className="text-sm text-gray-500">
+              <span className="text-xs text-gray-400">
                 {new Date(c.created_at).toLocaleDateString('pt-BR', {
                   day: '2-digit',
                   month: '2-digit',
@@ -55,11 +45,11 @@ export default function ConsultationList() {
                   minute: '2-digit',
                 })}
               </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[c.status]}`}>
-                {statusLabel[c.status]}
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">
+                Concluída
               </span>
             </div>
-            <p className="text-base text-gray-800 truncate">
+            <p className="text-base text-gray-800 line-clamp-1">
               {c.patient_summary || 'Consulta sem resumo'}
             </p>
           </button>
