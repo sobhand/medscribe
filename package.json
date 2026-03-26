@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "build": "cd client && npm run build",
-    "vercel-build": "cd client && npm install && npm run build"
+    "build": "cd client && npm run build"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.10.4",
