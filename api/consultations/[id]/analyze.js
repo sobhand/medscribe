@@ -45,13 +45,8 @@ export default async function handler(req, res) {
     try {
       analysis = JSON.parse(responseText);
     } catch (e) {
-      console.error('[analyze] JSON parse failed, raw response:', responseText.substring(0, 500));
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Resposta da IA não é um JSON válido');
-      }
+      console.error('[analyze] JSON parse failed:', responseText.substring(0, 300));
+      throw new Error('Resposta da IA não é um JSON válido');
     }
 
     await sql`
@@ -68,7 +63,7 @@ export default async function handler(req, res) {
     return res.json(analysis);
   } catch (error) {
     console.error('[analyze] Error:', error?.message || error);
-    await sql`UPDATE consultations SET status = 'error' WHERE id = ${id}`;
+    await sql`UPDATE consultations SET status = 'error', error_message = ${error?.message || 'Erro na análise'} WHERE id = ${id}`;
     return res.status(500).json({ error: `Falha na análise: ${error?.message || 'Erro desconhecido'}` });
   }
 }

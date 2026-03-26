@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   doc.pipe(res);
 
   // Header
-  doc.fontSize(20).font('Helvetica-Bold').text('MedScribe — Relatório de Consulta', { align: 'center' });
+  doc.fontSize(20).font('Helvetica-Bold').text('Laudi — Relatório de Consulta', { align: 'center' });
   doc.moveDown(0.5);
   doc.fontSize(11).font('Helvetica')
     .text(`Médico: Dr(a). ${row.doctor_name} — CRM: ${row.doctor_crm}`, { align: 'center' });
@@ -116,7 +116,7 @@ export default async function handler(req, res) {
 
   doc.moveDown(2);
   doc.fontSize(8).font('Helvetica').fillColor('#999999')
-    .text('Documento gerado por MedScribe. Hipóteses diagnósticas, exames e conduta são sugestões de IA e devem ser revisadas pelo médico responsável.', { align: 'center' });
+    .text('Documento gerado por Laudi. Hipóteses diagnósticas, exames e conduta são sugestões de IA e devem ser revisadas pelo médico responsável.', { align: 'center' });
 
   doc.end();
 }

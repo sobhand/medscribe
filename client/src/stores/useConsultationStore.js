@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 
 const PROCESSING_STEPS = [
-  { key: 'create', label: 'Criando consulta...', done: false },
-  { key: 'transcribe', label: 'Transcrevendo consulta...', done: false },
-  { key: 'analyze', label: 'Analisando conteúdo clínico...', done: false },
-  { key: 'complete', label: 'Gerando documentação...', done: false },
+  { key: 'create', label: 'Criando consulta...', done: false, error: null },
+  { key: 'transcribe', label: 'Transcrevendo consulta...', done: false, error: null },
+  { key: 'analyze', label: 'Analisando conteúdo clínico...', done: false, error: null },
+  { key: 'complete', label: 'Finalizando documentação...', done: false, error: null },
 ];
 
 const useConsultationStore = create((set) => ({
@@ -13,13 +13,11 @@ const useConsultationStore = create((set) => ({
   doctorName: localStorage.getItem('doctor_name') || '',
   doctorCrm: localStorage.getItem('doctor_crm') || '',
 
+  sessionTitle: '',
   currentConsultationId: null,
   currentConsultation: null,
-
   processingSteps: PROCESSING_STEPS.map((s) => ({ ...s })),
-
   consultations: [],
-
   error: null,
 
   setDoctor: (name, crm) => {
@@ -29,24 +27,27 @@ const useConsultationStore = create((set) => ({
   },
 
   setScreen: (screen) => set({ screen, error: null }),
-
+  setSessionTitle: (sessionTitle) => set({ sessionTitle }),
   setCurrentConsultationId: (id) => set({ currentConsultationId: id }),
-
   setCurrentConsultation: (data) => set({ currentConsultation: data }),
-
   setConsultations: (list) => set({ consultations: list }),
 
   markProcessingStep: (key) =>
     set((state) => ({
       processingSteps: state.processingSteps.map((s) =>
-        s.key === key ? { ...s, done: true } : s
+        s.key === key ? { ...s, done: true, error: null } : s
+      ),
+    })),
+
+  failProcessingStep: (key, errorMsg) =>
+    set((state) => ({
+      processingSteps: state.processingSteps.map((s) =>
+        s.key === key ? { ...s, error: errorMsg } : s
       ),
     })),
 
   resetProcessingSteps: () =>
-    set({
-      processingSteps: PROCESSING_STEPS.map((s) => ({ ...s })),
-    }),
+    set({ processingSteps: PROCESSING_STEPS.map((s) => ({ ...s })) }),
 
   setError: (error) => set({ error }),
 }));

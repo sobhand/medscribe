@@ -1,8 +1,8 @@
-import { neon } from '@neondatabase/serverless';
+import { getDb } from '../lib/db.js';
 
 export default async function handler(req, res) {
   const { id } = req.query;
-  const sql = neon(process.env.DATABASE_URL);
+  const sql = getDb();
 
   if (req.method === 'GET') {
     const rows = await sql`SELECT * FROM consultations WHERE id = ${id}`;
@@ -11,40 +11,39 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const rows = await sql`SELECT id FROM consultations WHERE id = ${id}`;
+    const rows = await sql`SELECT * FROM consultations WHERE id = ${id}`;
     if (rows.length === 0) return res.status(404).json({ error: 'Consultation not found' });
 
-    const body = req.body;
-    const allowed = ['transcription', 'anamnesis', 'hypotheses', 'exams', 'treatment', 'patient_summary', 'status', 'audio_duration_seconds'];
+    const current = rows[0];
+    const b = req.body;
 
-    // Collect values, stringify objects
-    const vals = {};
-    for (const key of allowed) {
-      if (body[key] !== undefined) {
-        vals[key] = typeof body[key] === 'object' ? JSON.stringify(body[key]) : body[key];
-      }
-    }
+    const val = (key) => {
+      if (b[key] === undefined) return current[key];
+      return typeof b[key] === 'object' ? JSON.stringify(b[key]) : b[key];
+    };
 
-    if (Object.keys(vals).length === 0) {
-      return res.status(400).json({ error: 'No valid fields to update' });
-    }
-
-    // Build SET clause with positional params
-    const setClauses = [];
-    const params = [];
-    let i = 1;
-    for (const [key, value] of Object.entries(vals)) {
-      setClauses.push(`${key} = $${i}`);
-      params.push(value);
-      i++;
-    }
-    params.push(id);
-
-    await sql(`UPDATE consultations SET ${setClauses.join(', ')} WHERE id = $${i}`, params);
+    await sql`
+      UPDATE consultations SET
+        transcription = ${val('transcription')},
+        anamnesis = ${val('anamnesis')},
+        hypotheses = ${val('hypotheses')},
+        exams = ${val('exams')},
+        treatment = ${val('treatment')},
+        patient_summary = ${val('patient_summary')},
+        status = ${val('status')},
+        audio_duration_seconds = ${val('audio_duration_seconds')},
+        session_title = ${val('session_title')}
+      WHERE id = ${id}
+    `;
 
     return res.json({ success: true });
   }
 
-  res.setHeader('Allow', 'GET, PUT');
+  if (req.method === 'DELETE') {
+    await sql`DELETE FROM consultations WHERE id = ${id}`;
+    return res.json({ success: true });
+  }
+
+  res.setHeader('Allow', 'GET, PUT, DELETE');
   return res.status(405).end();
 }
