@@ -1,5 +1,5 @@
 import { getDb } from '../../lib/db.js';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { CLINICAL_PROMPT } from '../../lib/prompt.js';
 
 export const config = {
@@ -20,21 +20,18 @@ export default async function handler(req, res) {
     if (rows.length === 0) return res.status(404).json({ error: 'Consultation not found' });
     if (!rows[0].transcription) return res.status(400).json({ error: 'No transcription available' });
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: CLINICAL_PROMPT,
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      temperature: 0.2,
       messages: [
-        {
-          role: 'user',
-          content: `Transcrição da consulta:\n\n${rows[0].transcription}`,
-        },
+        { role: 'system', content: CLINICAL_PROMPT },
+        { role: 'user', content: `Transcrição da consulta:\n\n${rows[0].transcription}` },
       ],
     });
 
-    const responseText = message.content[0].text;
+    const responseText = completion.choices[0].message.content;
 
     let analysis;
     try {
@@ -44,7 +41,7 @@ export default async function handler(req, res) {
       if (jsonMatch) {
         analysis = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error('Failed to parse Claude response as JSON');
+        throw new Error('Failed to parse GPT response as JSON');
       }
     }
 
