@@ -4,11 +4,15 @@ export default function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
   const streamRef = useRef(null);
+  const analyserRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const audioCtxRef = useRef(null);
 
   const startTimer = useCallback(() => {
     if (timerRef.current) return;
@@ -24,9 +28,52 @@ export default function useAudioRecorder() {
     }
   }, []);
 
-  // Cleanup on unmount (StrictMode safe)
+  const stopLevelMonitor = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+    analyserRef.current = null;
+    setAudioLevel(0);
+  }, []);
+
+  const startLevelMonitor = useCallback((stream) => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtxRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const tick = () => {
+        if (!analyserRef.current) return;
+        analyser.getByteFrequencyData(dataArray);
+        // Average volume 0-255, normalize to 0-1
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const avg = sum / dataArray.length / 255;
+        setAudioLevel(avg);
+        animFrameRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch (e) {
+      console.warn('Audio level monitoring not available:', e);
+    }
+  }, []);
+
+  // Cleanup on unmount
   const cleanup = useCallback(() => {
     stopTimer();
+    stopLevelMonitor();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
@@ -39,14 +86,13 @@ export default function useAudioRecorder() {
     setIsRecording(false);
     setIsPaused(false);
     setDuration(0);
-  }, [stopTimer]);
+  }, [stopTimer, stopLevelMonitor]);
 
   useEffect(() => {
     return cleanup;
   }, [cleanup]);
 
   const start = useCallback(async () => {
-    // Idempotent — if already recording, skip
     if (mediaRecorderRef.current) return;
 
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -73,7 +119,8 @@ export default function useAudioRecorder() {
     setIsPaused(false);
     setDuration(0);
     startTimer();
-  }, [startTimer]);
+    startLevelMonitor(stream);
+  }, [startTimer, startLevelMonitor]);
 
   const pause = useCallback(() => {
     if (mediaRecorderRef.current?.state === 'recording') {
@@ -107,6 +154,7 @@ export default function useAudioRecorder() {
           streamRef.current = null;
         }
 
+        stopLevelMonitor();
         mediaRecorderRef.current = null;
         setIsRecording(false);
         setIsPaused(false);
@@ -116,7 +164,7 @@ export default function useAudioRecorder() {
 
       mediaRecorderRef.current.stop();
     });
-  }, [stopTimer]);
+  }, [stopTimer, stopLevelMonitor]);
 
   const formatDuration = useCallback((secs) => {
     const h = String(Math.floor(secs / 3600)).padStart(2, '0');
@@ -129,6 +177,7 @@ export default function useAudioRecorder() {
     isRecording,
     isPaused,
     duration,
+    audioLevel,
     formattedDuration: formatDuration(duration),
     start,
     pause,

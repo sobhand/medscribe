@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import useConsultationStore from '../stores/useConsultationStore';
-import { getConsultations, getConsultation, deleteConsultation } from '../services/api';
+import { getConsultations, getConsultation, deleteConsultation, analyze } from '../services/api';
 
 export default function ConsultationList() {
   const { consultations, setConsultations, setScreen, setCurrentConsultationId, setCurrentConsultation } =
@@ -30,6 +30,19 @@ export default function ConsultationList() {
       setConsultations(consultations.filter((c) => c.id !== id));
     } catch (err) {
       console.error('Delete failed:', err);
+    }
+  };
+
+  const handleRetry = async (e, c) => {
+    e.stopPropagation();
+    try {
+      await analyze(c.id);
+      const data = await getConsultation(c.id);
+      setCurrentConsultationId(c.id);
+      setCurrentConsultation(data);
+      setScreen('results');
+    } catch (err) {
+      console.error('Retry failed:', err);
     }
   };
 
@@ -118,6 +131,17 @@ export default function ConsultationList() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-800 line-clamp-1 font-medium">{title}</p>
+                {c.status === 'error' && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs text-red-500 flex-1 truncate">{c.error_message || 'Erro no processamento'}</span>
+                    <button
+                      onClick={(e) => handleRetry(e, c)}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 whitespace-nowrap"
+                    >
+                      Tentar novamente
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

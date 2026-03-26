@@ -7,9 +7,9 @@ export default function RecordingScreen() {
   const {
     doctorName, doctorCrm, sessionTitle, setScreen,
     setCurrentConsultationId, setCurrentConsultation,
-    markProcessingStep, failProcessingStep, resetProcessingSteps, setError,
+    markProcessingStep, resetProcessingSteps, setError,
   } = useConsultationStore();
-  const { isRecording, isPaused, formattedDuration, duration, start, pause, resume, stop, cleanup } = useAudioRecorder();
+  const { isRecording, isPaused, formattedDuration, duration, audioLevel, start, pause, resume, stop, cleanup } = useAudioRecorder();
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -64,6 +64,14 @@ export default function RecordingScreen() {
     }
   };
 
+  // Generate 5 bar heights from audio level
+  const barHeights = [0.6, 0.8, 1, 0.8, 0.6].map((scale) => {
+    const base = 4;
+    const max = 36;
+    const h = base + audioLevel * (max - base) * scale;
+    return Math.max(base, h);
+  });
+
   return (
     <div className="min-h-[100dvh] flex flex-col items-center justify-center px-5 bg-gradient-to-b from-brand-50 to-white">
       {/* Recording indicator */}
@@ -79,16 +87,20 @@ export default function RecordingScreen() {
         {formattedDuration}
       </div>
 
-      {/* Sound wave */}
+      {/* Real audio level bars */}
       {isRecording && !isPaused && (
-        <div className="flex items-end gap-1.5 mb-10 h-8">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="sound-bar" />
+        <div className="flex items-end gap-1.5 mb-10 h-10">
+          {barHeights.map((h, i) => (
+            <div
+              key={i}
+              className="w-1.5 bg-brand-500 rounded-full transition-all duration-100"
+              style={{ height: `${h}px` }}
+            />
           ))}
         </div>
       )}
 
-      {isPaused && <div className="mb-10 h-8" />}
+      {isPaused && <div className="mb-10 h-10" />}
 
       {/* Min duration hint */}
       {duration < 3 && (
