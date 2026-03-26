@@ -5,7 +5,7 @@ import { createConsultation, transcribe, analyze, getConsultation } from '../ser
 
 export default function RecordingScreen() {
   const {
-    doctorName, doctorCrm, sessionTitle, setScreen,
+    doctorName, doctorCrm, currentPatientId, setScreen,
     setCurrentConsultationId, setCurrentConsultation,
     markProcessingStep, resetProcessingSteps, setError,
   } = useConsultationStore();
@@ -42,7 +42,7 @@ export default function RecordingScreen() {
     resetProcessingSteps();
 
     try {
-      const { id } = await createConsultation(doctorName, doctorCrm, sessionTitle);
+      const { id } = await createConsultation(doctorName, doctorCrm, currentPatientId);
       setCurrentConsultationId(id);
       markProcessingStep('create');
 

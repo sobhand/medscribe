@@ -8,29 +8,36 @@ const PROCESSING_STEPS = [
 ];
 
 const useConsultationStore = create((set) => ({
-  screen: localStorage.getItem('doctor_name') ? 'home' : 'setup',
+  // Screen: 'home' | 'patient-detail' | 'patient-form' | 'recording' | 'processing' | 'results'
+  screen: 'home',
 
-  doctorName: localStorage.getItem('doctor_name') || '',
-  doctorCrm: localStorage.getItem('doctor_crm') || '',
+  doctorName: '',
+  doctorCrm: '',
 
-  sessionTitle: '',
+  // Patient
+  currentPatientId: null,
+  currentPatient: null,
+  patients: [],
+
+  // Consultation
   currentConsultationId: null,
   currentConsultation: null,
   processingSteps: PROCESSING_STEPS.map((s) => ({ ...s })),
-  consultations: [],
+
   error: null,
 
   setDoctor: (name, crm) => {
-    localStorage.setItem('doctor_name', name);
-    localStorage.setItem('doctor_crm', crm);
-    set({ doctorName: name, doctorCrm: crm, screen: 'home' });
+    set({ doctorName: name, doctorCrm: crm });
   },
 
   setScreen: (screen) => set({ screen, error: null }),
-  setSessionTitle: (sessionTitle) => set({ sessionTitle }),
+
+  setCurrentPatientId: (id) => set({ currentPatientId: id }),
+  setCurrentPatient: (data) => set({ currentPatient: data }),
+  setPatients: (list) => set({ patients: list }),
+
   setCurrentConsultationId: (id) => set({ currentConsultationId: id }),
   setCurrentConsultation: (data) => set({ currentConsultation: data }),
-  setConsultations: (list) => set({ consultations: list }),
 
   markProcessingStep: (key) =>
     set((state) => ({

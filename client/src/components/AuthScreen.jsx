@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import LaudiLogo from './LaudiLogo';
+import { SPECIALTIES } from '../config/specialties';
 
 export default function AuthScreen({ mode, onAuth, onNavigate }) {
   const isSignup = mode === 'signup';
@@ -7,6 +8,7 @@ export default function AuthScreen({ mode, onAuth, onNavigate }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [crm, setCrm] = useState('');
+  const [specialty, setSpecialty] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +20,7 @@ export default function AuthScreen({ mode, onAuth, onNavigate }) {
     try {
       const endpoint = isSignup ? '/api/auth/signup' : '/api/auth/signin';
       const body = isSignup
-        ? { name: name.trim(), email: email.trim(), password, crm: crm.trim() || null }
+        ? { name: name.trim(), email: email.trim(), password, crm: crm.trim() || null, specialty: specialty || null }
         : { email: email.trim(), password };
 
       const res = await fetch(endpoint, {
@@ -106,14 +108,24 @@ export default function AuthScreen({ mode, onAuth, onNavigate }) {
             </div>
 
             {isSignup && (
-              <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">CRM <span className="text-gray-300">(opcional)</span></label>
-                <input
-                  type="text" value={crm} onChange={(e) => setCrm(e.target.value)}
-                  placeholder="123456/SP"
-                  className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition bg-surface focus:bg-white"
-                />
-              </div>
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Especialidade</label>
+                  <select value={specialty} onChange={(e) => setSpecialty(e.target.value)}
+                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition bg-surface focus:bg-white">
+                    <option value="">Selecione sua especialidade</option>
+                    {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">CRM <span className="text-gray-300">(opcional)</span></label>
+                  <input
+                    type="text" value={crm} onChange={(e) => setCrm(e.target.value)}
+                    placeholder="123456/SP"
+                    className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none transition bg-surface focus:bg-white"
+                  />
+                </div>
+              </>
             )}
 
             {error && (

@@ -1,5 +1,5 @@
-import { getDb } from '../../lib/db.js';
-import { requireAuth } from '../../lib/auth.js';
+import { getDb } from '../../../lib/db.js';
+import { requireAuth } from '../../../lib/auth.js';
 import PDFDocument from 'pdfkit';
 
 export default async function handler(req, res) {

@@ -1,5 +1,5 @@
-import { getDb } from '../lib/db.js';
-import { requireAuth } from '../lib/auth.js';
+import { getDb } from '../../lib/db.js';
+import { requireAuth } from '../../lib/auth.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(req, res) {
@@ -9,12 +9,12 @@ export default async function handler(req, res) {
   const sql = getDb();
 
   if (req.method === 'POST') {
-    const { doctor_name, doctor_crm, session_title } = req.body;
+    const { doctor_name, doctor_crm, session_title, patient_id } = req.body;
 
     const id = uuidv4();
     await sql`
-      INSERT INTO consultations (id, user_id, doctor_name, doctor_crm, session_title, status)
-      VALUES (${id}, ${user.id}, ${doctor_name || user.name}, ${doctor_crm || user.crm || ''}, ${session_title || null}, 'recording')
+      INSERT INTO consultations (id, user_id, patient_id, doctor_name, doctor_crm, session_title, status)
+      VALUES (${id}, ${user.id}, ${patient_id || null}, ${doctor_name || user.name}, ${doctor_crm || user.crm || ''}, ${session_title || null}, 'recording')
     `;
 
     return res.status(201).json({ id, status: 'recording' });

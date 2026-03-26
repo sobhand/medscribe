@@ -1,5 +1,5 @@
-import { getDb } from '../lib/db.js';
-import { signToken } from '../lib/auth.js';
+import { getDb } from '../../lib/db.js';
+import { signToken } from '../../lib/auth.js';
 import bcrypt from 'bcryptjs';
 
 export default async function handler(req, res) {
@@ -33,10 +33,11 @@ export default async function handler(req, res) {
     name: user.name,
     email: user.email,
     crm: user.crm,
+    specialty: user.specialty,
   });
 
   return res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, crm: user.crm },
+    user: { id: user.id, name: user.name, email: user.email, crm: user.crm, specialty: user.specialty },
   });
 }

@@ -1,5 +1,5 @@
-import { getDb } from '../lib/db.js';
-import { signToken } from '../lib/auth.js';
+import { getDb } from '../../lib/db.js';
+import { signToken } from '../../lib/auth.js';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     return res.status(405).end();
   }
 
-  const { name, email, password, crm } = req.body;
+  const { name, email, password, crm, specialty } = req.body;
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
@@ -31,11 +31,11 @@ export default async function handler(req, res) {
   const passwordHash = await bcrypt.hash(password, 10);
 
   await sql`
-    INSERT INTO users (id, name, email, password_hash, crm)
-    VALUES (${id}, ${name.trim()}, ${email.toLowerCase().trim()}, ${passwordHash}, ${crm || null})
+    INSERT INTO users (id, name, email, password_hash, crm, specialty)
+    VALUES (${id}, ${name.trim()}, ${email.toLowerCase().trim()}, ${passwordHash}, ${crm || null}, ${specialty || null})
   `;
 
-  const user = { id, name: name.trim(), email: email.toLowerCase().trim(), crm: crm || null };
+  const user = { id, name: name.trim(), email: email.toLowerCase().trim(), crm: crm || null, specialty: specialty || null };
   const token = signToken(user);
 
   return res.status(201).json({ token, user });

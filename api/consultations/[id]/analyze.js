@@ -1,7 +1,7 @@
-import { getDb } from '../../lib/db.js';
-import { requireAuth } from '../../lib/auth.js';
+import { getDb } from '../../../lib/db.js';
+import { requireAuth } from '../../../lib/auth.js';
 import OpenAI from 'openai';
-import { CLINICAL_PROMPT } from '../../lib/prompt.js';
+import { CLINICAL_PROMPT, buildContextualPrompt } from '../../../lib/prompt.js';
 
 export const config = {
   maxDuration: 60,
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   const sql = getDb();
 
   try {
-    const rows = await sql`SELECT transcription FROM consultations WHERE id = ${id} AND user_id = ${user.id}`;
+    const rows = await sql`SELECT transcription, patient_id FROM consultations WHERE id = ${id} AND user_id = ${user.id}`;
     if (rows.length === 0) return res.status(404).json({ error: 'Consulta não encontrada' });
 
     const transcription = rows[0].transcription;
@@ -28,7 +28,28 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Transcrição vazia ou muito curta para análise' });
     }
 
-    console.log(`[analyze] id=${id}, transcription length=${transcription.length}`);
+    // Fetch patient record and history for compounding intelligence
+    let patient = null;
+    let previousConsultations = [];
+
+    if (rows[0].patient_id) {
+      const patientRows = await sql`SELECT * FROM patients WHERE id = ${rows[0].patient_id}`;
+      patient = patientRows[0] || null;
+
+      previousConsultations = await sql`
+        SELECT patient_summary, anamnesis, hypotheses, treatment, created_at
+        FROM consultations
+        WHERE patient_id = ${rows[0].patient_id} AND id != ${id} AND status = 'completed'
+        ORDER BY created_at DESC LIMIT 5
+      `;
+    }
+
+    // Build contextual prompt with patient history + doctor specialty
+    const systemPrompt = patient || previousConsultations.length > 0 || user.specialty
+      ? buildContextualPrompt(patient, previousConsultations, user.specialty)
+      : CLINICAL_PROMPT;
+
+    console.log(`[analyze] id=${id}, patient=${patient?.name || 'none'}, history=${previousConsultations.length}, specialty=${user.specialty || 'none'}, promptLen=${systemPrompt.length}`);
 
     const openai = new OpenAI({ apiKey: (process.env.OPENAI_API_KEY || '').trim() });
 
@@ -37,13 +58,12 @@ export default async function handler(req, res) {
       temperature: 0.2,
       response_format: { type: 'json_object' },
       messages: [
-        { role: 'system', content: CLINICAL_PROMPT },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: `Transcrição da consulta:\n\n${transcription}` },
       ],
     });
 
     const responseText = completion.choices[0].message.content;
-    console.log(`[analyze] response length=${responseText.length}`);
 
     let analysis;
     try {

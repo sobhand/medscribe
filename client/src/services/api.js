@@ -44,15 +44,47 @@ async function request(url, options = {}) {
   return data;
 }
 
-export async function createConsultation(doctorName, doctorCrm, sessionTitle) {
+export async function createConsultation(doctorName, doctorCrm, patientId) {
   return request(`${BASE}/consultations`, {
     method: 'POST',
     body: JSON.stringify({
       doctor_name: doctorName,
       doctor_crm: doctorCrm,
-      session_title: sessionTitle || null,
+      patient_id: patientId || null,
     }),
   });
+}
+
+// Patient API
+export async function getPatients(search) {
+  const q = search ? `?search=${encodeURIComponent(search)}` : '';
+  return request(`${BASE}/patients${q}`);
+}
+
+export async function getPatient(id) {
+  return request(`${BASE}/patients/${id}`);
+}
+
+export async function createPatient(data) {
+  return request(`${BASE}/patients`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updatePatient(id, data) {
+  return request(`${BASE}/patients/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deletePatient(id) {
+  return request(`${BASE}/patients/${id}`, { method: 'DELETE' });
+}
+
+export async function getPatientConsultations(patientId) {
+  return request(`${BASE}/patients/${patientId}/consultations`);
 }
 
 export async function transcribe(consultationId, audioBlob, duration) {
