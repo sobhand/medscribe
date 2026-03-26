@@ -1,0 +1,8 @@
+export const FEATURES = {
+  TRANSCRIPTION: true,
+  ANAMNESIS: true,
+  DIAGNOSTIC_HYPOTHESES: true,
+  COMPLEMENTARY_EXAMS: true,
+  TREATMENT_SUGGESTION: true,
+  PDF_EXPORT: true,
+};
